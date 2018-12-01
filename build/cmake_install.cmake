@@ -1,4 +1,4 @@
-# Install script for directory: /home/voll/repos/P6
+# Install script for directory: /media/voll/Volume/sdc_playground/P6
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -40,5 +40,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/voll/repos/P6/build/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/media/voll/Volume/sdc_playground/P6/build/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
