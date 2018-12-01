@@ -25,7 +25,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 	cout << "entering init" << endl;
-	num_particles=10;
+	num_particles=100;
 
 	default_random_engine gen;
 	double std_x=std[0], std_y=std[1], std_theta=std[2]; // Standard deviations for x, y, and theta
@@ -87,17 +87,25 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	}  */
 	for (auto & particle : particles) {
     	float x_0= particle.x; float y_0 = particle.y; float theta_0= particle.theta;
-		particle.x= x_0 + velocity/yaw_rate*(    sin(theta_0+yaw_rate*delta_t) - sin(theta_0));
-		particle.y= y_0 + velocity/yaw_rate*(0.0-cos(theta_0+yaw_rate*delta_t) + cos(theta_0));
-		particle.theta=theta_0 + yaw_rate*delta_t;
+		if (yaw_rate == 0) {
+			particle.x= x_0 + velocity*delta_t*cos(theta_0);
+			particle.y= y_0 + velocity*delta_t*sin(theta_0);
+			particle.theta=theta_0 + yaw_rate*delta_t;
+		}
+		else {
+			particle.x= x_0 + velocity/yaw_rate*(    sin(theta_0+yaw_rate*delta_t) - sin(theta_0));
+			particle.y= y_0 + velocity/yaw_rate*(0.0-cos(theta_0+yaw_rate*delta_t) + cos(theta_0));
+			particle.theta=theta_0 + yaw_rate*delta_t;
+		}
+		
 		// now add random noise to particle position
 		normal_distribution<double> dist_x(particle.x, std_x);
 	    normal_distribution<double> dist_y(particle.y, std_y);
 	    normal_distribution<double> dist_theta(particle.theta, std_theta);
-		particle.x+= dist_x(gen);
+		particle.x= dist_x(gen);
 		//cout << "new x: " << particle.x << endl;
-		particle.y+= dist_y(gen);
-		particle.theta+=dist_theta(gen);
+		particle.y= dist_y(gen);
+		particle.theta=dist_theta(gen);
 	}
 
 }
@@ -145,7 +153,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 				double mydistance= dist(x_map,y_map,x_lm,y_lm);
 				//cout <<"mydistance: " << mydistance<<  "xmap: "<<x_map << " ymap: " << y_map << " xlm: " << x_lm << " ylm: " << y_lm << endl;
 				if ((mydistance<= distance_best) 
-									&& dist(x_map,y_map,particle.x, particle.y) <= sensor_range) {
+									&& dist(x_lm,y_lm,particle.x, particle.y) <= sensor_range) {  //choose x_lm instead of x_map!
 					x_best=x_lm; y_best= y_lm; id_best = id_lm;
 					distance_best = mydistance;
 					//cout << " distance_best: " << distance_best << endl;
@@ -168,8 +176,8 @@ void ParticleFilter::resample() {
 	// TODO: Resample particles with replacement with probability proportional to their weight. 
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    /*std::random_device rd;
+    std::mt19937 gen(rd()); */
 	//extract vector of weights, not yet normalized to one 
 	std::vector<double> ws_non_normalized;
 	double w_sum=0.0;
@@ -177,14 +185,18 @@ void ParticleFilter::resample() {
 		ws_non_normalized.push_back(particle.weight);
 		w_sum+= particle.weight;
 	}
+	/*
 	//normalize the vector of weights
 	std::vector<double> ws_normalized;
-	cout << "w_sum" << w_sum << endl;
+	//cout << "w_sum" << w_sum << endl;
 	for (auto & w : ws_non_normalized) {
 		ws_normalized.push_back(w/w_sum);
-	}
-	std::discrete_distribution<> dist(ws_normalized.begin(), ws_normalized.end());
+	}  */
+
+	default_random_engine gen;
+	std::discrete_distribution<> dist(ws_non_normalized.begin(), ws_non_normalized.end());
 	//cout << "probability distribution w"  <<  ws_normalized[0]  << endl;
+	
 	
 	std::vector<Particle> new_particles;
 	for (auto & particle : particles) {
