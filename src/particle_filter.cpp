@@ -24,7 +24,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
-
+	cout << "entering init" << endl;
 	num_particles=10;
 
 	default_random_engine gen;
@@ -43,6 +43,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 		particle.x=sample_x;particle.y=sample_y;particle.theta=sample_theta;
 		particles.push_back(particle);
 		weights.push_back(1.0);
+		
 		/*	 
 		struct Particle {
 		int id;
@@ -54,7 +55,8 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 		std::vector<double> sense_x;
 		std::vector<double> sense_y;
 		*/
-	};
+	}
+	is_initialized = true;
 
 }
 
@@ -93,6 +95,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	    normal_distribution<double> dist_y(particle.y, std_y);
 	    normal_distribution<double> dist_theta(particle.theta, std_theta);
 		particle.x+= dist_x(gen);
+		//cout << "new x: " << particle.x << endl;
 		particle.y+= dist_y(gen);
 		particle.theta+=dist_theta(gen);
 	}
@@ -129,27 +132,34 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		std::vector<double> sense_x;
 		std::vector<double> sense_y;}; */
         // create empty lists in particle
-			particle.associations.clear();particle.sense_x.clear(); particle.sense_y.clear(); particle.weight=1.0;
+		particle.associations.clear();particle.sense_x.clear(); particle.sense_y.clear(); particle.weight=1.0;
 
 		for (auto & observation : observations) {
-			double	x_obs=observation.x; double y_obs = observation.y; int id_obs = observation.id;
-			double x_map= x_obs * cos(theta_part) - y_obs * sin(theta_part)+ x_part;
-			double y_map= x_obs * sin(theta_part) + y_obs * cos(theta_part)+ y_part;
+			double x_obs=observation.x; double y_obs = observation.y; int id_obs = observation.id;
+			double x_map=  x_obs * cos(theta_part) - y_obs * sin(theta_part)+ x_part;
+			double y_map=  x_obs * sin(theta_part) + y_obs * cos(theta_part)+ y_part;
 			// prepare to find best estimate given (x_map,y_map)	
 			double x_best; double y_best; double distance_best = 1.0e10; int id_best = 10000000;
 			for (auto & map_landmark : map_landmarks.landmark_list) {
 				double x_lm=map_landmark.x_f; double y_lm=map_landmark.y_f; int id_lm=map_landmark.id_i;
-				if (dist(x_map,y_map,x_lm,y_lm)<= distance_best 
+				double mydistance= dist(x_map,y_map,x_lm,y_lm);
+				//cout <<"mydistance: " << mydistance<<  "xmap: "<<x_map << " ymap: " << y_map << " xlm: " << x_lm << " ylm: " << y_lm << endl;
+				if ((mydistance<= distance_best) 
 									&& dist(x_map,y_map,particle.x, particle.y) <= sensor_range) {
 					x_best=x_lm; y_best= y_lm; id_best = id_lm;
-					distance_best = dist(x_map,y_map,x_lm,y_lm);
+					distance_best = mydistance;
+					//cout << " distance_best: " << distance_best << endl;
 				}
+				//cout << " DISTANCE_BEST: " << distance_best << endl;
 			}
+			
+			
 			// at this point (x_best,y_best) are known to be the coordinates of lm number id_best,
 			// that is the best estimate for the given observation. It remains to append this to particle's lists
 			particle.associations.push_back(id_best);
 			particle.sense_x.push_back(x_best); particle.sense_y.push_back(y_best); 
-			particle.weight*= my_mv_2d_gauss(std_landmark,x_best,x_best,x_map,y_map);
+			particle.weight= particle.weight * my_mv_2d_gauss(std_landmark,x_best,y_best,x_map,y_map);
+			//cout << "weight: " << particle.weight << endl;
 		} 
 	}
 }
@@ -169,15 +179,17 @@ void ParticleFilter::resample() {
 	}
 	//normalize the vector of weights
 	std::vector<double> ws_normalized;
+	cout << "w_sum" << w_sum << endl;
 	for (auto & w : ws_non_normalized) {
 		ws_normalized.push_back(w/w_sum);
 	}
 	std::discrete_distribution<> dist(ws_normalized.begin(), ws_normalized.end());
+	//cout << "probability distribution w"  <<  ws_normalized[0]  << endl;
 	
 	std::vector<Particle> new_particles;
 	for (auto & particle : particles) {
 		int rand_index=dist(gen);
-		cout << "rand_index: "<< rand_index << endl;
+		//cout << "rand_index: "<< rand_index << endl;
 		new_particles.push_back(particles[rand_index]);  // select random index according to weights
 	}
 	particles=new_particles;
